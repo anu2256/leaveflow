@@ -1,7 +1,9 @@
 const express = require('express');
 const pool = require('../db/pool');
+const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
+router.use(requireAuth);
 
 // GET /api/leave-requests
 router.get('/', async (req, res, next) => {
@@ -22,20 +24,44 @@ router.get('/', async (req, res, next) => {
       return next(error);
     }
 
-    let result;
+   let result;
 
-    if (status) {
-      result = await pool.query(
-        'SELECT * FROM leave_requests WHERE status = $1 ORDER BY id',
-        [status]
-      );
-    } else {
-      result = await pool.query(
-        'SELECT * FROM leave_requests ORDER BY id'
-      );
-    }
+if (req.user.role === 'EMPLOYEE') {
+  if (status) {
+    result = await pool.query(
+      `SELECT *
+       FROM leave_requests
+       WHERE user_id = $1
+         AND status = $2
+       ORDER BY id`,
+      [req.user.id, status]
+    );
+  } else {
+    result = await pool.query(
+      `SELECT *
+       FROM leave_requests
+       WHERE user_id = $1
+       ORDER BY id`,
+      [req.user.id]
+    );
+  }
+} else {
+  if (status) {
+    result = await pool.query(
+      `SELECT *
+       FROM leave_requests
+       WHERE status = $1
+       ORDER BY id`,
+      [status]
+    );
+  } else {
+    result = await pool.query(
+      'SELECT * FROM leave_requests ORDER BY id'
+    );
+  }
+}
 
-    res.json(result.rows);
+res.json(result.rows);
   } catch (err) {
     next(err);
   }
@@ -43,13 +69,14 @@ router.get('/', async (req, res, next) => {
 // POST /api/leave-requests
 router.post('/', async (req, res, next) => {
   try {
-    const {
-      user_id,
-      leave_type_id,
-      start_date,
-      end_date,
-      reason
-    } = req.body;
+  const {
+   leave_type_id,
+   start_date,
+   end_date,
+   reason
+} = req.body;
+
+const user_id = req.user.id;
 
     if (!user_id || !leave_type_id || !start_date || !end_date) {
       const error = new Error(
@@ -143,8 +170,9 @@ router.post('/', async (req, res, next) => {
 });
 // PATCH /api/leave-requests/:id
 // PATCH /api/leave-requests/:id
+// PATCH /api/leave-requests/:id
 router.patch('/:id', async (req, res, next) => {
-  const { action, decided_by } = req.body;
+  const { action, decision_note } = req.body;
 
   if (action !== 'approve' && action !== 'reject') {
     const error = new Error(
@@ -152,6 +180,17 @@ router.patch('/:id', async (req, res, next) => {
     );
     error.status = 400;
     error.code = 'VALIDATION_ERROR';
+    return next(error);
+  }
+
+  // Only MANAGER and HR_ADMIN can approve/reject
+  if (
+    req.user.role !== 'MANAGER' &&
+    req.user.role !== 'HR_ADMIN'
+  ) {
+    const error = new Error('forbidden');
+    error.status = 403;
+    error.code = 'FORBIDDEN';
     return next(error);
   }
 
@@ -179,6 +218,28 @@ router.patch('/:id', async (req, res, next) => {
 
     const row = result.rows[0];
 
+    // Manager can only decide on their own team's requests
+    if (req.user.role === 'MANAGER') {
+      const employee = await client.query(
+        `SELECT manager_id
+         FROM users
+         WHERE id = $1`,
+        [row.user_id]
+      );
+
+      if (
+        employee.rowCount === 0 ||
+        employee.rows[0].manager_id !== req.user.id
+      ) {
+        await client.query('ROLLBACK');
+
+        const error = new Error('forbidden');
+        error.status = 403;
+        error.code = 'FORBIDDEN';
+        return next(error);
+      }
+    }
+
     if (row.status !== 'PENDING') {
       await client.query('ROLLBACK');
 
@@ -200,7 +261,9 @@ router.patch('/:id', async (req, res, next) => {
       const end = new Date(row.end_date);
 
       const days =
-        Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+        Math.floor(
+          (end - start) / (1000 * 60 * 60 * 24)
+        ) + 1;
 
       const year = start.getFullYear();
 
@@ -224,10 +287,16 @@ router.patch('/:id', async (req, res, next) => {
       `UPDATE leave_requests
        SET status = $1,
            decided_by = $2,
-           decided_at = now()
-       WHERE id = $3
+           decided_at = now(),
+           decision_note = $3
+       WHERE id = $4
        RETURNING *`,
-      [status, decided_by || null, req.params.id]
+      [
+        status,
+        req.user.id,
+        decision_note || null,
+        req.params.id
+      ]
     );
 
     await client.query('COMMIT');
@@ -240,6 +309,7 @@ router.patch('/:id', async (req, res, next) => {
     client.release();
   }
 });
+// DELETE /api/leave-requests/:id
 // DELETE /api/leave-requests/:id
 router.delete('/:id', async (req, res, next) => {
   try {
@@ -256,6 +326,25 @@ router.delete('/:id', async (req, res, next) => {
     }
 
     const row = result.rows[0];
+
+    // Employee can only cancel their own request
+    if (
+      req.user.role === 'EMPLOYEE' &&
+      row.user_id !== req.user.id
+    ) {
+      const error = new Error('forbidden');
+      error.status = 403;
+      error.code = 'FORBIDDEN';
+      return next(error);
+    }
+
+    // Only the employee who owns the request can cancel it
+    if (req.user.role !== 'EMPLOYEE') {
+      const error = new Error('forbidden');
+      error.status = 403;
+      error.code = 'FORBIDDEN';
+      return next(error);
+    }
 
     if (row.status !== 'PENDING') {
       const error = new Error(

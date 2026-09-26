@@ -1,14 +1,16 @@
 const express = require('express');
 const pool = require('../db/pool');
+const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
+router.use(requireAuth);
 
 // GET /api/balances?user_id=2&year=2026
 router.get('/', async (req, res, next) => {
   try {
-    const { user_id, year } = req.query;
-
-    if (!user_id || !year) {
+    const { year } = req.query;
+    const user_id = req.user.id;
+   if (!year) {
       const error = new Error(
         'user_id and year are required'
       );
