@@ -1,6 +1,8 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { leaveDays } = require('../lib/leaveDays');
+const { HOLIDAYS_2026 } = require('../lib/holidays');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -100,11 +102,7 @@ const user_id = req.user.id;
       return next(error);
     }
 
-    const start = new Date(start_date);
-    const end = new Date(end_date);
-
-    const days =
-      Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+    const days = leaveDays(start_date, end_date, HOLIDAYS_2026);
 
     if (days > 30) {
       const error = new Error(
@@ -261,15 +259,9 @@ router.patch('/:id', async (req, res, next) => {
 
     // If approving, calculate the number of leave days
     if (action === 'approve') {
-      const start = new Date(row.start_date);
-      const end = new Date(row.end_date);
+      const days = leaveDays(row.start_date, row.end_date, HOLIDAYS_2026);
 
-      const days =
-        Math.floor(
-          (end - start) / (1000 * 60 * 60 * 24)
-        ) + 1;
-
-      const year = start.getFullYear();
+      const year = new Date(row.start_date).getFullYear();
 
       await client.query(
         `INSERT INTO leave_balances

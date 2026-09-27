@@ -1,29 +1,53 @@
 
-import { useEffect, useState } from 'react'
-import { getLeaveRequests } from './api'
+import { useCallback, useEffect, useState } from 'react'
+import { cancelLeaveRequest, getLeaveRequests } from './api'
 
 function MyLeave({ token, refreshKey }) {
   const [requests, setRequests] = useState([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [cancellingId, setCancellingId] = useState(null)
+
+  const loadRequests = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError('')
+
+      const data = await getLeaveRequests(token)
+      setRequests(data)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [token])
 
   useEffect(() => {
-    async function loadRequests() {
-      try {
-        setLoading(true)
-        setError('')
-
-        const data = await getLeaveRequests(token)
-        setRequests(data)
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     loadRequests()
-  }, [token, refreshKey])
+  }, [loadRequests, refreshKey])
+
+  async function handleCancel(id) {
+    // Guard against duplicate clicks while a cancel is in flight.
+    if (cancellingId) return
+
+    const confirmed = window.confirm(
+      'Are you sure you want to cancel this leave request?'
+    )
+
+    if (!confirmed) return
+
+    try {
+      setCancellingId(id)
+      setError('')
+
+      await cancelLeaveRequest(token, id)
+      await loadRequests()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setCancellingId(null)
+    }
+  }
 
   function formatDate(date) {
     if (!date) return '-'
@@ -105,6 +129,7 @@ function MyLeave({ token, refreshKey }) {
                 <th>END DATE</th>
                 <th>REASON</th>
                 <th>STATUS</th>
+                <th>ACTIONS</th>
               </tr>
             </thead>
 
@@ -154,6 +179,29 @@ function MyLeave({ token, refreshKey }) {
                     >
                       {request.status}
                     </span>
+                  </td>
+
+                  <td>
+                    {request.status === 'PENDING' ? (
+                      <button
+                        type="button"
+                        className="cancel-button"
+                        onClick={() => handleCancel(request.id)}
+                        disabled={cancellingId === request.id}
+                        aria-label={`Cancel leave request #${request.id}`}
+                      >
+                        {cancellingId === request.id ? (
+                          <>
+                            <span className="button-spinner red-spinner" />
+                            Cancelling...
+                          </>
+                        ) : (
+                          'Cancel'
+                        )}
+                      </button>
+                    ) : (
+                      <span className="no-action">—</span>
+                    )}
                   </td>
 
                 </tr>

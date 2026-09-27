@@ -571,6 +571,59 @@ textarea {
 
 
 /* =========================
+   My Leave: Cancel action
+========================= */
+
+.cancel-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  padding: 7px 14px;
+
+  color: #be123c;
+  background: #ffffff;
+  border: 1px solid #fecdd3;
+  border-radius: 9px;
+
+  font-size: 13px;
+  font-weight: 700;
+
+  cursor: pointer;
+  white-space: nowrap;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.cancel-button:hover {
+  background: #fff1f2;
+  border-color: #fda4af;
+
+  box-shadow: 0 5px 14px rgba(244, 63, 94, 0.12);
+}
+
+.cancel-button:focus-visible {
+  outline: none;
+
+  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.18);
+}
+
+.cancel-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.no-action {
+  color: #c2c8d2;
+}
+
+
+/* =========================
    Status Badges
 ========================= */
 

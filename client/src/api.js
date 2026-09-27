@@ -72,6 +72,15 @@ export function decideLeaveRequest(token, id, action, decision_note) {
   })
 }
 
+export function cancelLeaveRequest(token, id) {
+  return request(`/leave-requests/${id}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+}
+
 export function getTeamRequests(token) {
   return request('/team/requests', {
     headers: {
