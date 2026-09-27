@@ -29,19 +29,23 @@ router.get('/', async (req, res, next) => {
 if (req.user.role === 'EMPLOYEE') {
   if (status) {
     result = await pool.query(
-      `SELECT *
-       FROM leave_requests
-       WHERE user_id = $1
-         AND status = $2
-       ORDER BY id`,
+      `SELECT lr.*, lt.name AS leave_type
+       FROM leave_requests lr
+       JOIN leave_types lt
+         ON lr.leave_type_id = lt.id
+       WHERE lr.user_id = $1
+         AND lr.status = $2
+       ORDER BY lr.id`,
       [req.user.id, status]
     );
   } else {
     result = await pool.query(
-      `SELECT *
-       FROM leave_requests
-       WHERE user_id = $1
-       ORDER BY id`,
+      `SELECT lr.*, lt.name AS leave_type
+       FROM leave_requests lr
+       JOIN leave_types lt
+         ON lr.leave_type_id = lt.id
+       WHERE lr.user_id = $1
+       ORDER BY lr.id`,
       [req.user.id]
     );
   }
@@ -74,7 +78,7 @@ router.post('/', async (req, res, next) => {
    start_date,
    end_date,
    reason
-} = req.body;
+} = req.body || {};
 
 const user_id = req.user.id;
 
@@ -172,7 +176,7 @@ const user_id = req.user.id;
 // PATCH /api/leave-requests/:id
 // PATCH /api/leave-requests/:id
 router.patch('/:id', async (req, res, next) => {
-  const { action, decision_note } = req.body;
+  const { action, decision_note } = req.body || {};
 
   if (action !== 'approve' && action !== 'reject') {
     const error = new Error(

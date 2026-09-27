@@ -19,10 +19,13 @@ router.get(
           `SELECT
              lr.*,
              u.name AS employee_name,
-             u.email AS employee_email
+             u.email AS employee_email,
+             lt.name AS leave_type
            FROM leave_requests lr
            JOIN users u
              ON u.id = lr.user_id
+           JOIN leave_types lt
+             ON lr.leave_type_id = lt.id
            WHERE u.manager_id = $1
              AND lr.status = 'PENDING'
            ORDER BY lr.id`,
@@ -33,10 +36,13 @@ router.get(
           `SELECT
              lr.*,
              u.name AS employee_name,
-             u.email AS employee_email
+             u.email AS employee_email,
+             lt.name AS leave_type
            FROM leave_requests lr
            JOIN users u
              ON u.id = lr.user_id
+           JOIN leave_types lt
+             ON lr.leave_type_id = lt.id
            ORDER BY lr.id`
         );
       }

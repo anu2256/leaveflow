@@ -21,18 +21,18 @@ router.get('/', async (req, res, next) => {
 
     const result = await pool.query(
       `SELECT
-         lb.user_id,
-         lb.leave_type_id,
+         $1::int AS user_id,
+         lt.id AS leave_type_id,
          lt.name AS leave_type,
          lt.annual_allocation,
-         lb.used_days,
-         (lt.annual_allocation - lb.used_days) AS remaining_days
-       FROM leave_balances lb
-       JOIN leave_types lt
-         ON lt.id = lb.leave_type_id
-       WHERE lb.user_id = $1
-         AND lb.year = $2
-       ORDER BY lb.leave_type_id`,
+         COALESCE(lb.used_days, 0) AS used_days,
+         (lt.annual_allocation - COALESCE(lb.used_days, 0)) AS remaining_days
+       FROM leave_types lt
+       LEFT JOIN leave_balances lb
+         ON lb.leave_type_id = lt.id
+        AND lb.user_id = $1
+        AND lb.year = $2
+       ORDER BY lt.id`,
       [user_id, year]
     );
 
