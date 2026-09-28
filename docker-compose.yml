@@ -1,0 +1,48 @@
+name: leaveflow
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: leaveflow_dev
+      POSTGRES_DB: leaveflow
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d leaveflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  api:
+    build: ./server
+    # JWT_SECRET (and any other keys) come from the existing dev env file,
+    # so the secret is not embedded in this compose file.
+    env_file:
+      - ./server/.env
+    # DATABASE_URL is overridden to reach the Compose db service (this takes
+    # precedence over the value in env_file).
+    environment:
+      DATABASE_URL: postgres://postgres:leaveflow_dev@db:5432/leaveflow
+    # Internal only: reachable on the Compose network as api:4000, not published.
+    expose:
+      - "4000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build: ./client
+    # Frontend published on the host at http://localhost:8080 (nginx :80).
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  db-data:
