@@ -6,13 +6,13 @@ VALUES
 
 INSERT INTO users (name, email, password_hash, role, manager_id) VALUES
   ('Ruwan Jayasuriya', 'ruwan@ceylonroots.lk',
-   '$2b$10$WuSJHU1NAAAxSGyNuCP9MOYosPhhq.evuU3bTIlZ5QMHoi.rALO1m',
+   '$2b$10$rbXUefpfBGT7tF.9jyCQuevpn8cSwWcOdEvXE0rmGnJT.qmuZ7dUa',
    'MANAGER', NULL),
 
   ('Ishara Fernando', 'ishara@ceylonroots.lk',
-   '$2b$10$WuSJHU1NAAAxSGyNuCP9MOYosPhhq.evuU3bTIlZ5QMHoi.rALO1m',
+   '$2b$10$rbXUefpfBGT7tF.9jyCQuevpn8cSwWcOdEvXE0rmGnJT.qmuZ7dUa',
    'EMPLOYEE', 1),
 
   ('Dilini Weerasinghe', 'dilini@ceylonroots.lk',
-   '$2b$10$WuSJHU1NAAAxSGyNuCP9MOYosPhhq.evuU3bTIlZ5QMHoi.rALO1m',
+   '$2b$10$rbXUefpfBGT7tF.9jyCQuevpn8cSwWcOdEvXE0rmGnJT.qmuZ7dUa',
    'HR_ADMIN', NULL);
