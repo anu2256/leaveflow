@@ -4,6 +4,7 @@ import { createLeaveRequest } from './api'
 
 function ApplyLeaveForm({ token, onCreated }) {
   const [leaveTypeId, setLeaveTypeId] = useState('1')
+  const [dayPart, setDayPart] = useState('FULL')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [reason, setReason] = useState('')
@@ -30,9 +31,11 @@ function ApplyLeaveForm({ token, onCreated }) {
         start_date: startDate,
         end_date: endDate,
         reason,
+        day_part: dayPart,
       })
 
       setMessage('Leave request submitted successfully.')
+      setDayPart('FULL')
       setStartDate('')
       setEndDate('')
       setReason('')
@@ -90,6 +93,30 @@ function ApplyLeaveForm({ token, onCreated }) {
           </select>
         </div>
 
+        {/* Duration */}
+        <div className="form-group">
+          <label htmlFor="dayPart">
+            Duration
+          </label>
+
+          <select
+            id="dayPart"
+            value={dayPart}
+            onChange={(event) => {
+              const value = event.target.value
+              setDayPart(value)
+              // Half-days are a single date: mirror start → end.
+              if (value !== 'FULL') {
+                setEndDate(startDate)
+              }
+            }}
+          >
+            <option value="FULL">Full Day(s)</option>
+            <option value="AM">Half Day (Morning - AM)</option>
+            <option value="PM">Half Day (Afternoon - PM)</option>
+          </select>
+        </div>
+
         {/* Dates */}
         <div className="date-grid">
 
@@ -102,9 +129,14 @@ function ApplyLeaveForm({ token, onCreated }) {
               id="startDate"
               type="date"
               value={startDate}
-              onChange={(event) =>
-                setStartDate(event.target.value)
-              }
+              onChange={(event) => {
+                const value = event.target.value
+                setStartDate(value)
+                // For a half-day the end date always equals the start date.
+                if (dayPart !== 'FULL') {
+                  setEndDate(value)
+                }
+              }}
               required
             />
           </div>
@@ -121,6 +153,7 @@ function ApplyLeaveForm({ token, onCreated }) {
               onChange={(event) =>
                 setEndDate(event.target.value)
               }
+              disabled={dayPart !== 'FULL'}
               required
             />
           </div>

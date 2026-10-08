@@ -162,6 +162,12 @@ function Approvals({ token }) {
                   <span className="approval-leave-type">
                     {request.leave_type || 'Leave'}
                   </span>
+
+                  {request.day_part && request.day_part !== 'FULL' && (
+                    <span className="half-day-badge">
+                      {request.day_part}
+                    </span>
+                  )}
                 </div>
 
                 <div className="approval-dates">

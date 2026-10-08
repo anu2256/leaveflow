@@ -47,6 +47,7 @@ describe('ApplyLeaveForm', () => {
       start_date: '2026-07-06',
       end_date: '2026-07-08',
       reason: 'Family trip to Kandy',
+      day_part: 'FULL',
     })
 
     // Assert — success message shown and callback fired

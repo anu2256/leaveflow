@@ -2,7 +2,8 @@ const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { leaveDays } = require('../lib/leaveDays');
-const { HOLIDAYS_2026 } = require('../lib/holidays');
+const { getHolidays } = require('../lib/holidays');
+const { sendLeaveDecisionEmail } = require("../services/email");
 
 const router = express.Router();
 router.use(requireAuth);
@@ -79,15 +80,24 @@ router.post('/', async (req, res, next) => {
    leave_type_id,
    start_date,
    end_date,
-   reason
+   reason,
+   day_part
 } = req.body || {};
 
 const user_id = req.user.id;
+const dayPart = day_part || 'FULL';
 
     if (!user_id || !leave_type_id || !start_date || !end_date) {
       const error = new Error(
         'user_id, leave_type_id, start_date and end_date are required'
       );
+      error.status = 400;
+      error.code = 'VALIDATION_ERROR';
+      return next(error);
+    }
+
+    if (!['FULL', 'AM', 'PM'].includes(dayPart)) {
+      const error = new Error("day_part must be 'FULL', 'AM', or 'PM'");
       error.status = 400;
       error.code = 'VALIDATION_ERROR';
       return next(error);
@@ -102,7 +112,18 @@ const user_id = req.user.id;
       return next(error);
     }
 
-    const days = leaveDays(start_date, end_date, HOLIDAYS_2026);
+    if ((dayPart === 'AM' || dayPart === 'PM') && start_date !== end_date) {
+      const error = new Error(
+        'Half-day requests must have matching start and end dates'
+      );
+      error.status = 400;
+      error.code = 'VALIDATION_ERROR';
+      return next(error);
+    }
+
+    const currentYear = new Date(start_date).getFullYear();
+    const holidays = await getHolidays(currentYear);
+    const days = leaveDays(start_date, end_date, holidays, dayPart);
 
     if (days > 30) {
       const error = new Error(
@@ -124,8 +145,6 @@ const user_id = req.user.id;
       error.code = 'NOT_FOUND';
       return next(error);
     }
-
-    const currentYear = new Date(start_date).getFullYear();
 
     const balance = await pool.query(
       `SELECT used_days
@@ -153,15 +172,16 @@ const user_id = req.user.id;
 
     const result = await pool.query(
       `INSERT INTO leave_requests
-       (user_id, leave_type_id, start_date, end_date, reason)
-       VALUES ($1, $2, $3, $4, $5)
+       (user_id, leave_type_id, start_date, end_date, reason, day_part)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
       [
         user_id,
         leave_type_id,
         start_date,
         end_date,
-        reason || null
+        reason || null,
+        dayPart
       ]
     );
 
@@ -257,11 +277,16 @@ router.patch('/:id', async (req, res, next) => {
       ? 'APPROVED'
       : 'REJECTED';
 
-    // If approving, calculate the number of leave days
+    // If approving, calculate the number of leave days (incl. 0.5 half-days)
     if (action === 'approve') {
-      const days = leaveDays(row.start_date, row.end_date, HOLIDAYS_2026);
-
       const year = new Date(row.start_date).getFullYear();
+      const holidays = await getHolidays(year);
+      const days = leaveDays(
+        row.start_date,
+        row.end_date,
+        holidays,
+        row.day_part || 'FULL'
+      );
 
       await client.query(
         `INSERT INTO leave_balances

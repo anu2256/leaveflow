@@ -147,6 +147,12 @@ function MyLeave({ token, refreshKey }) {
                     <span className="leave-type">
                       {request.leave_type || 'Leave'}
                     </span>
+
+                    {request.day_part && request.day_part !== 'FULL' && (
+                      <span className="half-day-badge">
+                        Half day ({request.day_part})
+                      </span>
+                    )}
                   </td>
 
                   <td>

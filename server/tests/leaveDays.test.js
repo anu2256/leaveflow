@@ -39,4 +39,29 @@ describe('leaveDays', () => {
     expect(leaveDays('2026-04-30', '2026-05-04')).toBe(3);
     expect(leaveDays('2026-04-30', '2026-05-04', HOLIDAYS_2026)).toBe(2);
   });
+
+  test('counts a morning (AM) half-day on a working day as 0.5', () => {
+    // 2026-06-01 is a Monday (working day)
+    expect(leaveDays('2026-06-01', '2026-06-01', [], 'AM')).toBe(0.5);
+  });
+
+  test('counts an afternoon (PM) half-day on a working day as 0.5', () => {
+    expect(leaveDays('2026-06-01', '2026-06-01', [], 'PM')).toBe(0.5);
+  });
+
+  test('returns 0 for a half-day that falls on a public holiday', () => {
+    // 2026-05-01 (Vesak) is a holiday
+    expect(leaveDays('2026-05-01', '2026-05-01', ['2026-05-01'], 'AM')).toBe(0);
+  });
+
+  test('returns 0 for a half-day that falls on a weekend', () => {
+    // 2026-06-06 is a Saturday
+    expect(leaveDays('2026-06-06', '2026-06-06', [], 'PM')).toBe(0);
+  });
+
+  test('throws when a half-day spans multiple dates', () => {
+    expect(() => leaveDays('2026-06-01', '2026-06-02', [], 'AM')).toThrow(
+      'Half-day requests must have matching start and end dates'
+    );
+  });
 });
